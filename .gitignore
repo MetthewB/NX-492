@@ -3,6 +3,18 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# macOS system files
+.DS_Store
+script/.DS_Store
+models/.DS_Store
+results/.DS_Store
+images/.DS_Store
+
+# Ignore Conda-related directories
+.conda/
+envs/
+.condarc
+
 # C extensions
 *.so
 
