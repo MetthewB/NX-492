@@ -21,6 +21,10 @@ class MyoElbowPose2D6MFixed(Env):
         self.pose_error = 0.0
         self.smoothed_pose_error = 0.0
 
+        # Target positions for the joints
+        self.target_shoulder_pos = 1.0
+        self.target_elbow_pos = 1.0
+
     def reset(self, seed=None, options=None):
         # Set the seed for reproducibility
         if seed is not None:
@@ -41,18 +45,24 @@ class MyoElbowPose2D6MFixed(Env):
 
     def step(self, action):
         # Update muscle activations
-        self.muscle_activations = action
+        self.muscle_activations = np.clip(action, self.action_space.low, self.action_space.high)
 
         # Simulate dynamics (placeholder for actual dynamics)
         self.shoulder_pos += self.shoulder_vel * 0.01
         self.elbow_pos += self.elbow_vel * 0.01
-        self.shoulder_vel += 0.0
-        self.elbow_vel += 0.0
+        self.shoulder_vel += np.sum(self.muscle_activations[:3]) * 0.01  # Placeholder dynamics
+        self.elbow_vel += np.sum(self.muscle_activations[3:]) * 0.01  # Placeholder dynamics
 
-        # Compute pose error (placeholder for actual computation)
-        self.pose_error = np.abs(self.shoulder_pos - 1.0) + np.abs(self.elbow_pos - 1.0)
+        # Compute pose error
+        self.pose_error = np.sqrt(
+            (self.shoulder_pos - self.target_shoulder_pos)**2 +
+            (self.elbow_pos - self.target_elbow_pos)**2
+        )
 
+        # Smooth the pose error
         self.smoothed_pose_error = 0.9 * self.smoothed_pose_error + 0.1 * self.pose_error
+
+        # Compute reward
         reward = -self.smoothed_pose_error
 
         # Check termination condition
