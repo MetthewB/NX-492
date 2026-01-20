@@ -1,57 +1,57 @@
-from gymnasium import Env, spaces
-import gymnasium as gym
-import numpy as np
-import torch
+"""
+MyoElbowPose2D6MFixed.py
+Custom Gymnasium Environment for a 2-DOF Arm with 6 Muscles.
+"""
 
-class MyoElbowPose2D6MFixed(Env):
+import gymnasium as gym
+from gymnasium import spaces
+import numpy as np
+
+class MyoElbowPose2D6MFixed(gym.Env):
     def __init__(self):
         super().__init__()
         
-        self.observation_space = spaces.Box(
-            low=np.array([-np.pi, -20.0, -np.pi, -20.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
-            high=np.array([np.pi, 20.0, np.pi, 20.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]),
-            dtype=np.float32
-        )
-
+        # --- 1. Action & Observation Spaces ---
+        # Observation: [theta_s, dot_theta_s, theta_e, dot_theta_e, m_act_1...m_act_6]
+        high_obs = np.array([np.pi, 20.0, np.pi, 20.0] + [1.0]*6, dtype=np.float32)
+        low_obs = np.array([-np.pi, -20.0, -np.pi, -20.0] + [0.0]*6, dtype=np.float32)
+        
+        self.observation_space = spaces.Box(low=low_obs, high=high_obs, dtype=np.float32)
         self.action_space = spaces.Box(low=0.0, high=1.0, shape=(6,), dtype=np.float32)
 
-        # Environment constants (Synchronized with Training Loop)
+        # --- 2. Physics Constants ---
+        # Synchronized with Training Loop
         self.dt = 0.01
         self.inertia = 0.1
         self.damping_coefficient = 0.4
         
-        # Moment Arm Matrix (Must match M_m in training script)
-        # Columns: [Shoulder_MA, Elbow_MA]
+        # --- 3. Muscle Geometry (Moment Arms) ---
+        # Rows: Muscles (0-5), Columns: Joints (Shoulder, Elbow)
         self.M_m = np.array([
-            [ 0.10,  0.00], # Mono Shoulder Flexor
-            [-0.10,  0.00], # Mono Shoulder Extensor
-            [ 0.00,  0.10], # Mono Elbow Flexor
-            [ 0.00, -0.10], # Mono Elbow Extensor
-            [ 0.08,  0.08], # Bi-articular Flexor
-            [-0.08, -0.08]  # Bi-articular Extensor
-        ])
+            [ 0.10,  0.00], # Muscle 0: Mono Shoulder Flexor
+            [-0.10,  0.00], # Muscle 1: Mono Shoulder Extensor
+            [ 0.00,  0.10], # Muscle 2: Mono Elbow Flexor
+            [ 0.00, -0.10], # Muscle 3: Mono Elbow Extensor
+            [ 0.08,  0.08], # Muscle 4: Bi-articular Flexor
+            [-0.08, -0.08]  # Muscle 5: Bi-articular Extensor
+        ], dtype=np.float32)
 
+        # --- 4. Internal State Init ---
         self.target_shoulder_pos = 0.0
         self.target_elbow_pos = 0.0
         self.external_torque = np.zeros(2) 
-        
-        self.reset_state()
+        self._reset_internal_state()
 
-    def reset_state(self):
-        self.shoulder_pos = 0.0
-        self.shoulder_vel = 0.0
-        self.elbow_pos = 0.0
-        self.elbow_vel = 0.0
-        self.muscle_activations = np.zeros(6)
-        self.pose_error = 0.0
-        self.current_step = 0
-        self.update_state()
-    
+    # =========================================================================
+    # Core Gym Interface
+    # =========================================================================
+
     def reset(self, seed=None, options=None, initial_qpos=None, target_qpos=None, offset=None):
-        if seed is not None:
-            self.np_random, seed = gym.utils.seeding.np_random(seed)
-        self.reset_state()
+        """Resets the environment to a clean initial state."""
+        super().reset(seed=seed)
+        self._reset_internal_state()
         
+        # Optional Overrides for Custom Start/Target
         if initial_qpos is not None:
             self.set_joint_angles(initial_qpos)
             
@@ -59,67 +59,90 @@ class MyoElbowPose2D6MFixed(Env):
             self.target_shoulder_pos = target_qpos[0] 
             self.target_elbow_pos = target_qpos[1]
             
-        self.update_state()
-        return self.state, {}
-
-    def set_external_torque(self, external_torque):
-        # external_torque should be calculated as -(J.T @ force) in the loop
-        self.external_torque = external_torque
+        return self._get_obs(), {}
 
     def step(self, action):
+        """Executes one simulation step."""
+        # 1. Apply Action (Clip inputs)
         self.muscle_activations = np.clip(action, 0.0, 1.0)
         
-        # SYNC 1: Match Force Scaling (using 60.0 to match the loop)
-        muscle_forces = self.muscle_activations * 60.0 
-
-        # SYNC 2: Use Moment Arm Matrix for Torque
-        # Torque = M_m.T @ muscle_forces
-        joint_torques = self.M_m.T @ muscle_forces
+        # 2. Run Physics
+        self._update_physics(self.muscle_activations)
         
-        total_shoulder_torque = joint_torques[0] + self.external_torque[0]
-        total_elbow_torque = joint_torques[1] + self.external_torque[1]
-
-        # SYNC 3: Update Joint Dynamics with light inertia and explicit damping
-        self._update_joint_dynamics(total_shoulder_torque, total_elbow_torque)
-
+        # 3. Update Metrics
         self.pose_error = self._compute_pose_error()
         self.current_step += 1
         
+        # 4. Check Termination (Fixed horizon)
         terminated = self.current_step >= 300
+        
         return self._get_obs(), 0.0, terminated, False, {}
 
-    def _update_joint_dynamics(self, shoulder_torque, elbow_torque):
-        # Physics implementation matching differentiable_physics_step
-        # 1. Accelerations (tau - damping*v) / I
-        acc_s = (shoulder_torque - self.damping_coefficient * self.shoulder_vel) / self.inertia
-        acc_e = (elbow_torque - self.damping_coefficient * self.elbow_vel) / self.inertia
+    # =========================================================================
+    # Physics Engine
+    # =========================================================================
 
-        # 2. Integration
+    def _update_physics(self, activations):
+        """Integrates joint dynamics based on muscle and external torques."""
+        # A. Force Generation (Scaled to match training loop max force)
+        muscle_forces = activations * 60.0 
+
+        # B. Internal Torque Calculation (M_m.T @ F)
+        internal_torques = self.M_m.T @ muscle_forces
+        
+        # C. Total Torque Accumulation
+        total_tau_s = internal_torques[0] + self.external_torque[0]
+        total_tau_e = internal_torques[1] + self.external_torque[1]
+
+        # D. Euler Integration with Damping
+        # Acceleration = (Torque - Damping * Velocity) / Inertia
+        acc_s = (total_tau_s - self.damping_coefficient * self.shoulder_vel) / self.inertia
+        acc_e = (total_tau_e - self.damping_coefficient * self.elbow_vel) / self.inertia
+
+        # Update Velocity
         self.shoulder_vel += acc_s * self.dt
         self.elbow_vel += acc_e * self.dt
         
-        # 3. Safety Clamps (prevents NaN from high speed)
+        # Safety Clamping (Prevents numerical instability)
         self.shoulder_vel = np.clip(self.shoulder_vel, -20, 20)
         self.elbow_vel = np.clip(self.elbow_vel, -20, 20)
 
+        # Update Position
         self.shoulder_pos += self.shoulder_vel * self.dt
         self.elbow_pos += self.elbow_vel * self.dt
 
-    def _compute_pose_error(self):
-        # Error in meters (for the environment's internal check)
-        shoulder_error = self.shoulder_pos - self.target_shoulder_pos
-        elbow_error = self.elbow_pos - self.target_elbow_pos
-        return np.sqrt(shoulder_error**2 + elbow_error**2)
+    # =========================================================================
+    # Helpers & State Management
+    # =========================================================================
+
+    def set_external_torque(self, external_torque):
+        """Updates the external perturbation torque vector."""
+        self.external_torque = np.array(external_torque, dtype=np.float32)
 
     def set_joint_angles(self, joint_angles):
+        """Manually overrides joint state (useful for forcing initial conditions)."""
         self.shoulder_pos, self.shoulder_vel, self.elbow_pos, self.elbow_vel = joint_angles
-        self.update_state()
 
-    def update_state(self):
-        self.state = np.array([
-            self.shoulder_pos, self.shoulder_vel, self.elbow_pos, self.elbow_vel,
-            *self.muscle_activations
-        ], dtype=np.float32)
+    def _reset_internal_state(self):
+        """Resets kinematic variables to zero."""
+        self.shoulder_pos = 0.0
+        self.shoulder_vel = 0.0
+        self.elbow_pos = 0.0
+        self.elbow_vel = 0.0
+        self.muscle_activations = np.zeros(6)
+        self.pose_error = 0.0
+        self.current_step = 0
+
+    def _compute_pose_error(self):
+        """Computes Euclidean distance to target in joint space."""
+        s_err = self.shoulder_pos - self.target_shoulder_pos
+        e_err = self.elbow_pos - self.target_elbow_pos
+        return np.sqrt(s_err**2 + e_err**2)
 
     def _get_obs(self):
-        return self.update_state() or self.state
+        """Constructs the standard observation vector."""
+        return np.array([
+            self.shoulder_pos, self.shoulder_vel, 
+            self.elbow_pos, self.elbow_vel,
+            *self.muscle_activations
+        ], dtype=np.float32)
