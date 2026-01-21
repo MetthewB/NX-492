@@ -18,7 +18,7 @@ By training the model for 3,000 epochs using differentiable physics, we successf
 * **Impedance Control:** The model learns to completely compensate for high background loads, likely through co-contraction strategies that increase limb stiffness.
 * **Reciprocal Reduction:** Crucially, we observe that the motor cortex reduces its activity during high-load conditions. It effectively "trusts" the strengthened spinal reflexes to handle stability, validating the efficiency hypothesis of hierarchical motor control.
 
-> **Explore the Data:** For a detailed analysis of these results, see the **Summary** section at the end of `script/main.ipynb` or view the generated plots in `results/100_epochs/` and `results/3000_epochs/`.
+> **Explore the Data:** For a detailed analysis of these results, see the **Summary** section at the end of `notebook/main.ipynb` or view the generated plots in `results/100_epochs/` and `results/3000_epochs/`.
 
 ---
 
@@ -43,15 +43,18 @@ pip install torch gymnasium numpy matplotlib
 
 ### Recommended Workflow
 
-1. **Main Simulation:** Open `script/main.ipynb`. This is the primary entry point.
+1. **Main Simulation (Notebook):** Open `notebook/main.ipynb`. This is the primary walkthrough.
 * **Context:** Explains the scientific background and model architecture.
-* **Code:** Runs the full differentiable physics pipeline and training loop.
+* **Code:** Runs the full differentiable physics pipeline and training loop interactively.
 * **Analysis:** Generates the cost evolution and trajectory comparison plots.
 
-2. **Environment Mechanics:** Check `script/MyoElbowPose2D6M.py` to see the custom Gym environment, which implements the 2-DOF arm physics, Hill-type muscle dynamics, and moment arm geometry.
+2. **Main Simulation (Script):** Alternatively, run `script/main.py` to execute the training loop directly from the terminal without the narrative context.
 
-3. **Foundational Concepts:** To understand the specific reflex logic (Ia/Ib afferents, reciprocal inhibition), explore `script/stretch_reflex_toy.ipynb`. This notebook builds the reflex model complexity step-by-step.
-4. **Alternative Approaches:** See `script/flexible_walker.ipynb` for an implementation based on the secondary reference (Ramadan et al.). Note: This notebook is experimental and not fully functional, but serves to illustrate alternative hierarchical control strategies.
+3. **Environment Mechanics:** Check `script/environment.py` to see the custom Gym environment, which implements the 2-DoF arm physics, Hill-type muscle dynamics, and moment arm geometry.
+
+4. **Foundational Concepts:** To understand the specific reflex logic (Ia/Ib afferents, reciprocal inhibition), explore `notebook/stretch_reflex_toy.ipynb`. This notebook builds the reflex model complexity step-by-step.
+
+5. **Alternative Approaches:** See `notebook/flexible_walker.ipynb` for an implementation based on the secondary reference (Ramadan et al.). Note: This notebook is experimental and not fully functional, but serves to illustrate alternative hierarchical control strategies.
 
 
 
@@ -59,16 +62,25 @@ pip install torch gymnasium numpy matplotlib
 
 ## 📂 Repository Structure
 
-```text
+```
 .
 ├── README.md                      # Project overview and documentation
 ├── architecture.md                # Detailed technical specification of the model architecture
 ├── Guang_ParallelFeedback.pdf     # Primary reference article (Guang et al., 2024)
 ├── Ramadan_FlexibleWalker.pdf     # Secondary reference article (Ramadan et al.)
 │
-├── script/                        # Codebase and Jupyter Notebooks
-│   ├── main.ipynb                 # MAIN FILE: Context, Code, and Analysis
-│   ├── MyoElbowPose2D6M.py        # Custom Gymnasium environment (Physics & Biomechanics)
+├── script/                        # Modular Python Scripts (Core Logic)
+│   ├── main.py                    # Execution script (runs the training loop)
+│   ├── config.py                  # Simulation constants and parameters
+│   ├── environment.py             # Gym environment wrapper (MyoElbowPose2D6M)
+│   ├── biomechanics.py            # Muscle models and physics dynamics
+│   ├── neural_network.py          # RNN controller and feedback signal logic
+│   ├── utils.py                   # Helper functions (buffers, seeding, costs)
+│   └── visualization.py           # Plotting and analysis functions
+│
+├── notebook/                      # Jupyter Notebooks (Experiments & Analysis)
+│   ├── main.ipynb                 # Full reproduction walkthrough (Context + Analysis)
+│   ├── environment.py             # Gym environment wrapper (MyoElbowPose2D6M)
 │   ├── stretch_reflex_toy.ipynb   # Progressive reflex logic experiments
 │   ├── flexible_walker.ipynb      # Alternative hierarchical strategy (Ramadan et al.)
 │   └── intermediate_version.ipynb # Archived development steps
