@@ -2,11 +2,19 @@
 
 This repository implements a biologically plausible neural limb controller to investigate hierarchical motor control. It reproduces and extends the findings of the 2024 study **"Parallel feedback processing for voluntary control: knowledge of spinal feedback in motor cortex"** by Guang et al..
 
+---
+
 ### 🎯 Core Objective
 
 How does the nervous system coordinate fast, low-level spinal reflexes with slower, high-level cortical responses?
 
 This project simulates a musculoskeletal arm model driven by a Recurrent Neural Network (RNN) cortex and a spinal reflex loop. The goal is to demonstrate "reciprocal reduction": the hypothesis that the motor cortex learns to "offload" control to spinal reflexes when those reflexes are strengthened by high background loads.
+
+### 🧠 Methodology
+For a deep dive into the neural network dimensions, spinal reflex equations, and muscle dynamics, please refer to the **[Technical Architecture specification](architecture.md)**.
+
+![Model Architecture](images/architecture.png) 
+**Figure 1: Model architecture.** Composed of recurrent neural networks (RNNs), a spinal reflex pathway, a two-segment musculoskeletal plant and proprioceptive feedback.
 
 ---
 
@@ -25,25 +33,28 @@ By training the model for 3,000 epochs using differentiable physics, we successf
 ## 🚀 Getting Started
 
 ### Prerequisites
-
-The code is tested on **Python 3.11.11**. You will need the following libraries:
-
-* PyTorch
-* Gymnasium
-* NumPy
-* Matplotlib
+The code is developed and tested on **Python 3.11.11**.
 
 ### Installation
 
-You can install the necessary dependencies via pip:
+1.  **Clone the repository:**
+    ```bash
+    git clone [https://github.com/amathislab/parallel-feedback-processing.git](https://github.com/amathislab/parallel-feedback-processing.git)
+    cd parallel-feedback-processing
+    ```
 
-```bash
-pip install torch gymnasium numpy matplotlib
-```
+2.  **Install dependencies:**
+    Install the required external libraries using the provided requirements file:
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-### Recommended Workflow
+---
 
-1. **Main Simulation (Notebook):** Open `notebook/main.ipynb`. This is the primary walkthrough.
+## 📖 Recommended Workflow
+
+1. **Main Simulation (Notebook):** Open `notebook/main.ipynb`. 
+**Read this as the primary project report.** It intertwines the scientific theory, code implementation, and graphical analysis.
 * **Context:** Explains the scientific background and model architecture.
 * **Code:** Runs the full differentiable physics pipeline and training loop interactively.
 * **Analysis:** Generates the cost evolution and trajectory comparison plots.
@@ -65,6 +76,7 @@ pip install torch gymnasium numpy matplotlib
 ```
 .
 ├── README.md                      # Project overview and documentation
+├── requirements.txt               # Install external dependencies
 ├── architecture.md                # Detailed technical specification of the model architecture
 ├── Guang_ParallelFeedback.pdf     # Primary reference article (Guang et al., 2024)
 ├── Ramadan_FlexibleWalker.pdf     # Secondary reference article (Ramadan et al.)
@@ -80,7 +92,6 @@ pip install torch gymnasium numpy matplotlib
 │
 ├── notebook/                      # Jupyter Notebooks (Experiments & Analysis)
 │   ├── main.ipynb                 # Full reproduction walkthrough (Context + Analysis)
-│   ├── environment.py             # Gym environment wrapper (MyoElbowPose2D6M)
 │   ├── stretch_reflex_toy.ipynb   # Progressive reflex logic experiments
 │   ├── flexible_walker.ipynb      # Alternative hierarchical strategy (Ramadan et al.)
 │   └── intermediate_version.ipynb # Archived development steps
@@ -91,6 +102,7 @@ pip install torch gymnasium numpy matplotlib
 │   └── toy_model/                 # Outputs from reflex toy experiments
 │
 └── images/                        # Static assets
+    ├── architecture.png           # Diargam of the model architecture
     └── flexible_walker.png        # Diagram of the flexible walker model
 ```
 
