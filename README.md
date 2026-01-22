@@ -39,14 +39,36 @@ The code is developed and tested on **Python 3.11.11**.
 
 1.  **Clone the repository:**
     ```bash
-    git clone [https://github.com/amathislab/parallel-feedback-processing.git](https://github.com/amathislab/parallel-feedback-processing.git)
+    git clone https://github.com/amathislab/parallel-feedback-processing.git
     cd parallel-feedback-processing
     ```
 
-2.  **Install dependencies:**
-    Install the required external libraries using the provided requirements file:
+2.  **Set up the environment:**
+
+    **Option A: Conda (Recommended)**
+    Create a clean environment with the specific Python version and install dependencies:
     ```bash
+    conda create -n parallel-feedback python=3.11.11
+    conda activate parallel-feedback
     pip install -r requirements.txt
+    ```
+
+    **Option B: Pip**
+    If you prefer using standard Python virtual environments:
+    ```bash
+    python3.11 -m venv venv
+    source venv/bin/activate
+    pip install -r requirements.txt
+    ```
+
+3.  **Run the Simulation:**
+    You can run the full training loop directly via the script or interactively via the notebook:
+    ```bash
+    # Option 1: Run the python script directly
+    python script/main.py
+    
+    # Option 2: Launch the interactive notebook
+    jupyter notebook notebook/main.ipynb
     ```
 
 ---
